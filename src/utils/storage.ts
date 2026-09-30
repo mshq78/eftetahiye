@@ -1,0 +1,268 @@
+import { EventConfig, SavedEvent, TeamMember } from '../types';
+import { defaultEventConfig } from '../event.config';
+
+const STORAGE_KEY_CURRENT = 'bootcamp_deck_current_config';
+const STORAGE_KEY_SAVED_LIST = 'bootcamp_deck_saved_events';
+const STORAGE_KEY_ACTIVE_ID = 'bootcamp_deck_active_id';
+const STORAGE_KEY_MASTER_TEAM = 'bootcamp_deck_master_team_roster';
+
+/**
+ * Get master team roster containing all registered members across events
+ */
+export function getMasterTeamRoster(): TeamMember[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_MASTER_TEAM);
+    if (raw) {
+      const list = JSON.parse(raw);
+      if (Array.isArray(list) && list.length > 0) {
+        return list;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to load master team roster from localStorage:', err);
+  }
+  // Initialize with default members if empty
+  const initial = defaultEventConfig.team || [];
+  try {
+    localStorage.setItem(STORAGE_KEY_MASTER_TEAM, JSON.stringify(initial));
+  } catch {
+    // ignore
+  }
+  return initial;
+}
+
+/**
+ * Save master team roster
+ */
+export function saveMasterTeamRoster(members: TeamMember[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY_MASTER_TEAM, JSON.stringify(members));
+  } catch (err) {
+    console.error('Failed to save master team roster to localStorage:', err);
+  }
+}
+
+/**
+ * Sync event team with master roster: merges any members from the master roster
+ * into the event's team list, preserving the presence flags of existing members,
+ * and adding any new master members as non-present by default.
+ */
+export function syncEventTeamWithMaster(eventTeam: TeamMember[] = []): TeamMember[] {
+  const master = getMasterTeamRoster();
+  const resultMap = new Map<string, TeamMember>();
+
+  // First, add all master members as inactive by default
+  master.forEach((m) => {
+    resultMap.set(m.id, { ...m, present: false });
+  });
+
+  // Then, apply the event's specific configurations and presence
+  eventTeam.forEach((m) => {
+    const existing = resultMap.get(m.id);
+    resultMap.set(m.id, {
+      ...existing,
+      ...m,
+      present: m.present !== false, // default true if not explicitly false
+    });
+  });
+
+  return Array.from(resultMap.values());
+}
+
+/**
+ * Load currently active configuration
+ */
+export function loadCurrentConfig(): EventConfig {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_CURRENT);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      // Ensure team members have present flag set, and sync with master roster
+      const rawTeam: TeamMember[] = parsed.team || defaultEventConfig.team;
+      const teamWithPresence = syncEventTeamWithMaster(rawTeam);
+
+      // Update master roster with loaded members
+      const master = getMasterTeamRoster();
+      const masterMap = new Map(master.map((m) => [m.id, m]));
+      teamWithPresence.forEach((m) => {
+        masterMap.set(m.id, {
+          id: m.id,
+          name: m.name,
+          role: m.role,
+          photoDataUrl: m.photoDataUrl,
+        });
+      });
+      saveMasterTeamRoster(Array.from(masterMap.values()));
+
+      // Merge with default to guarantee all new schema fields exist
+      return {
+        ...defaultEventConfig,
+        ...parsed,
+        team: teamWithPresence,
+        brand: { ...defaultEventConfig.brand, ...(parsed.brand || {}) },
+        organizer: { ...defaultEventConfig.organizer, ...(parsed.organizer || {}) },
+        clientOrg: { ...defaultEventConfig.clientOrg, ...(parsed.clientOrg || {}) },
+        modules: { ...defaultEventConfig.modules, ...(parsed.modules || {}) },
+        workshop: { ...defaultEventConfig.workshop, ...(parsed.workshop || {}) },
+        lunch: { ...defaultEventConfig.lunch, ...(parsed.lunch || {}) },
+        sectionTitles: { ...defaultEventConfig.sectionTitles, ...(parsed.sectionTitles || {}) },
+        theme: { ...defaultEventConfig.theme, ...(parsed.theme || {}) },
+      };
+    }
+  } catch (err) {
+    console.warn('Failed to load current config from localStorage:', err);
+  }
+  return defaultEventConfig;
+}
+
+/**
+ * Save current configuration
+ */
+export function saveCurrentConfig(config: EventConfig) {
+  try {
+    localStorage.setItem(STORAGE_KEY_CURRENT, JSON.stringify(config));
+    // Also sync members into master roster
+    if (config.team && config.team.length > 0) {
+      const master = getMasterTeamRoster();
+      const masterMap = new Map(master.map((m) => [m.id, m]));
+      config.team.forEach((m) => {
+        masterMap.set(m.id, {
+          id: m.id,
+          name: m.name,
+          role: m.role,
+          photoDataUrl: m.photoDataUrl,
+        });
+      });
+      saveMasterTeamRoster(Array.from(masterMap.values()));
+    }
+  } catch (err) {
+    console.error('LocalStorage save quota error:', err);
+  }
+}
+
+
+/**
+ * Get list of saved event presets
+ */
+export function getSavedEvents(): SavedEvent[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_SAVED_LIST);
+    if (raw) {
+      const list = JSON.parse(raw) as SavedEvent[];
+      if (Array.isArray(list) && list.length > 0) {
+        return list;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to get saved events list:', err);
+  }
+
+  // Initial default saved event
+  const initial: SavedEvent = {
+    id: 'default-hamta-mubarakeh',
+    name: 'همتا – دوره پاییز (فولاد مبارکه)',
+    updatedAt: Date.now(),
+    config: defaultEventConfig,
+  };
+  try {
+    localStorage.setItem(STORAGE_KEY_SAVED_LIST, JSON.stringify([initial]));
+  } catch {
+    // ignore
+  }
+  return [initial];
+}
+
+/**
+ * Save an event into the saved events list
+ */
+export function saveEventToLibrary(event: SavedEvent) {
+  const list = getSavedEvents();
+  const index = list.findIndex((e) => e.id === event.id);
+  if (index >= 0) {
+    list[index] = event;
+  } else {
+    list.unshift(event);
+  }
+  try {
+    localStorage.setItem(STORAGE_KEY_SAVED_LIST, JSON.stringify(list));
+  } catch (err) {
+    console.error('Failed to save event to library:', err);
+  }
+}
+
+/**
+ * Delete an event from the saved events list
+ */
+export function deleteEventFromLibrary(id: string) {
+  const list = getSavedEvents().filter((e) => e.id !== id);
+  try {
+    localStorage.setItem(STORAGE_KEY_SAVED_LIST, JSON.stringify(list));
+  } catch (err) {
+    console.error('Failed to delete event:', err);
+  }
+  return list;
+}
+
+/**
+ * Get active saved event ID
+ */
+export function getActiveEventId(): string | null {
+  return localStorage.getItem(STORAGE_KEY_ACTIVE_ID);
+}
+
+/**
+ * Set active saved event ID
+ */
+export function setActiveEventId(id: string) {
+  localStorage.setItem(STORAGE_KEY_ACTIVE_ID, id);
+}
+
+/**
+ * Export configuration as JSON file download
+ */
+export function exportConfigAsJSON(config: EventConfig, filename = 'bootcamp-event-config.json') {
+  const jsonStr = JSON.stringify(config, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Import configuration from JSON file
+ */
+export function importConfigFromJSON(file: File): Promise<EventConfig> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('خطا در خواندن فایل انتخابی'));
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        const parsed = JSON.parse(text);
+        if (!parsed.brand || !parsed.schedule) {
+          throw new Error('فرمت فایل JSON ارائه‌شده نامعتبر است');
+        }
+        resolve({
+          ...defaultEventConfig,
+          ...parsed,
+          brand: { ...defaultEventConfig.brand, ...(parsed.brand || {}) },
+          organizer: { ...defaultEventConfig.organizer, ...(parsed.organizer || {}) },
+          clientOrg: { ...defaultEventConfig.clientOrg, ...(parsed.clientOrg || {}) },
+          modules: { ...defaultEventConfig.modules, ...(parsed.modules || {}) },
+          workshop: { ...defaultEventConfig.workshop, ...(parsed.workshop || {}) },
+          lunch: { ...defaultEventConfig.lunch, ...(parsed.lunch || {}) },
+          sectionTitles: { ...defaultEventConfig.sectionTitles, ...(parsed.sectionTitles || {}) },
+          theme: { ...defaultEventConfig.theme, ...(parsed.theme || {}) },
+        });
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.readAsText(file);
+  });
+}

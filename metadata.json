@@ -1,0 +1,7 @@
+{
+  "name": "سامانه ارائه بوت‌کمپ‌های سازمانی",
+  "description": "سامانه تعاملی ارائه اسلاید ویژه بوت‌کمپ‌های آموزشی و سازمانی همراه با پنل تنظیمات زنده، مدیریت دوره‌ها، چیدمان واکنش‌گرا و خروجی چاپی",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
