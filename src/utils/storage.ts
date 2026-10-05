@@ -1,10 +1,24 @@
 import { EventConfig, SavedEvent, TeamMember } from '../types';
 import { defaultEventConfig } from '../event.config';
+import { queueRemoteSave } from './remote';
 
 const STORAGE_KEY_CURRENT = 'bootcamp_deck_current_config';
 const STORAGE_KEY_SAVED_LIST = 'bootcamp_deck_saved_events';
 const STORAGE_KEY_ACTIVE_ID = 'bootcamp_deck_active_id';
 const STORAGE_KEY_MASTER_TEAM = 'bootcamp_deck_master_team_roster';
+
+export const SYNCED_STORAGE_KEYS = [
+  STORAGE_KEY_CURRENT,
+  STORAGE_KEY_SAVED_LIST,
+  STORAGE_KEY_ACTIVE_ID,
+  STORAGE_KEY_MASTER_TEAM,
+];
+
+/** Write to localStorage (throws on quota) and queue the same value for the server. */
+function persist(key: string, value: unknown) {
+  localStorage.setItem(key, JSON.stringify(value));
+  queueRemoteSave(key, value);
+}
 
 /**
  * Get master team roster containing all registered members across events
@@ -34,9 +48,10 @@ export function getMasterTeamRoster(): TeamMember[] {
 /**
  * Save master team roster
  */
-export function saveMasterTeamRoster(members: TeamMember[]) {
+export function saveMasterTeamRoster(members: TeamMember[], syncRemote = true) {
   try {
-    localStorage.setItem(STORAGE_KEY_MASTER_TEAM, JSON.stringify(members));
+    if (syncRemote) persist(STORAGE_KEY_MASTER_TEAM, members);
+    else localStorage.setItem(STORAGE_KEY_MASTER_TEAM, JSON.stringify(members));
   } catch (err) {
     console.error('Failed to save master team roster to localStorage:', err);
   }
@@ -105,7 +120,8 @@ export function loadCurrentConfig(): EventConfig {
           photoDataUrl: m.photoDataUrl,
         });
       });
-      saveMasterTeamRoster(Array.from(masterMap.values()));
+      // Local-only: merely loading must not trigger a server write (and a password prompt)
+      saveMasterTeamRoster(Array.from(masterMap.values()), false);
 
       // Merge with default to guarantee all new schema fields exist
       return {
@@ -133,7 +149,7 @@ export function loadCurrentConfig(): EventConfig {
  */
 export function saveCurrentConfig(config: EventConfig) {
   try {
-    localStorage.setItem(STORAGE_KEY_CURRENT, JSON.stringify(config));
+    persist(STORAGE_KEY_CURRENT, config);
     // Also sync members into master roster
     if (config.team && config.team.length > 0) {
       const master = getMasterTeamRoster();
@@ -197,7 +213,7 @@ export function saveEventToLibrary(event: SavedEvent) {
     list.unshift(event);
   }
   try {
-    localStorage.setItem(STORAGE_KEY_SAVED_LIST, JSON.stringify(list));
+    persist(STORAGE_KEY_SAVED_LIST, list);
   } catch (err) {
     console.error('Failed to save event to library:', err);
   }
@@ -209,7 +225,7 @@ export function saveEventToLibrary(event: SavedEvent) {
 export function deleteEventFromLibrary(id: string) {
   const list = getSavedEvents().filter((e) => e.id !== id);
   try {
-    localStorage.setItem(STORAGE_KEY_SAVED_LIST, JSON.stringify(list));
+    persist(STORAGE_KEY_SAVED_LIST, list);
   } catch (err) {
     console.error('Failed to delete event:', err);
   }
@@ -221,7 +237,14 @@ export function deleteEventFromLibrary(id: string) {
  */
 export function getActiveEventId(): string | null {
   try {
-    return localStorage.getItem(STORAGE_KEY_ACTIVE_ID);
+    const raw = localStorage.getItem(STORAGE_KEY_ACTIVE_ID);
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw);
+      return typeof parsed === 'string' ? parsed : null;
+    } catch {
+      return raw; // legacy plain-string value
+    }
   } catch {
     return null;
   }
@@ -232,7 +255,7 @@ export function getActiveEventId(): string | null {
  */
 export function setActiveEventId(id: string) {
   try {
-    localStorage.setItem(STORAGE_KEY_ACTIVE_ID, id);
+    persist(STORAGE_KEY_ACTIVE_ID, id);
   } catch (err) {
     console.warn('Failed to save active event id:', err);
   }
