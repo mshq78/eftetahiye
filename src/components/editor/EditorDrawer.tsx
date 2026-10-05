@@ -50,7 +50,7 @@ interface EditorDrawerProps {
   onDeleteEvent: (id: string) => void;
   onResetToDefault: () => void;
   onExportJSON: () => void;
-  onImportJSON: (file: File) => void;
+  onImportJSON: (file: File) => Promise<boolean> | void;
 }
 
 type TabType = 'info' | 'logos' | 'schedule' | 'team' | 'slides' | 'theme' | 'events';
@@ -699,7 +699,8 @@ export const EditorDrawer: React.FC<EditorDrawerProps> = ({
               </label>
               <input
                 type="text"
-                value={config.sectionTitles?.schedule || 'برنامه زمانی روز ما'}
+                value={config.sectionTitles?.schedule ?? ''}
+                placeholder="برنامه زمانی روز ما"
                 onChange={(e) =>
                   updateConfig((prev) => ({
                     ...prev,
@@ -983,7 +984,8 @@ export const EditorDrawer: React.FC<EditorDrawerProps> = ({
                 </label>
                 <input
                   type="text"
-                  value={config.sectionTitles?.team || 'معرفی اعضای تیم'}
+                  value={config.sectionTitles?.team ?? ''}
+                  placeholder="معرفی اعضای تیم"
                   onChange={(e) =>
                     updateConfig((prev) => ({
                       ...prev,
@@ -1563,12 +1565,13 @@ export const EditorDrawer: React.FC<EditorDrawerProps> = ({
                     type="file"
                     accept=".json"
                     className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
+                    onChange={async (e) => {
+                      const input = e.target;
+                      const file = input.files?.[0];
                       if (file) {
-                        onImportJSON(file);
-                        showNotice('فایل رویداد با موفقیت بارگذاری شد.');
-                        e.target.value = '';
+                        const ok = await onImportJSON(file);
+                        if (ok !== false) showNotice('فایل رویداد با موفقیت بارگذاری شد.');
+                        input.value = '';
                       }
                     }}
                   />

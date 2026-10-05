@@ -16,6 +16,7 @@ export const DeckFrame: React.FC<DeckFrameProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const touchStartXRef = useRef<number | null>(null);
+  const touchStartYRef = useRef<number>(0);
 
   // Re-calculate 16:9 scale factor whenever window or editor drawer changes
   useEffect(() => {
@@ -39,15 +40,17 @@ export const DeckFrame: React.FC<DeckFrameProps> = ({
   // Handle Touch Swipes (RTL aware: swipe left = next, swipe right = prev)
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartXRef.current = e.touches[0].clientX;
+    touchStartYRef.current = e.touches[0].clientY;
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (touchStartXRef.current === null) return;
     const touchEndX = e.changedTouches[0].clientX;
     const diff = touchEndX - touchStartXRef.current;
+    const diffY = e.changedTouches[0].clientY - touchStartYRef.current;
 
-    // Minimum swipe threshold 50px
-    if (Math.abs(diff) > 50) {
+    // Minimum swipe threshold 50px, and the gesture must be mostly horizontal
+    if (Math.abs(diff) > 50 && Math.abs(diff) > Math.abs(diffY)) {
       if (diff < 0) {
         // Swiped left in RTL = go to next slide
         onNext();

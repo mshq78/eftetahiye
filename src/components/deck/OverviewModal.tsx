@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { SlideItem } from '../../types';
 import { toPersianDigits } from '../../utils/helpers';
 import { X, Check } from 'lucide-react';
@@ -18,17 +18,6 @@ export const OverviewModal: React.FC<OverviewModalProps> = ({
   currentIndex,
   onSelectSlide,
 }) => {
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isOpen) return;
-      if (e.key === 'Escape' || e.key === 'g' || e.key === 'G') {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
   if (!isOpen) return null;
 
   return (

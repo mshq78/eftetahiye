@@ -39,6 +39,12 @@ export function compressImage(file: File, maxDim = 500, quality = 0.85): Promise
         let width = img.width;
         let height = img.height;
 
+        // e.g. SVG without intrinsic size: keep the original data URL
+        if (!width || !height) {
+          resolve(e.target?.result as string);
+          return;
+        }
+
         if (width > maxDim || height > maxDim) {
           if (width > height) {
             height = Math.round((height * maxDim) / width);

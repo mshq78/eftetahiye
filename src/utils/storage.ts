@@ -14,7 +14,7 @@ export function getMasterTeamRoster(): TeamMember[] {
     const raw = localStorage.getItem(STORAGE_KEY_MASTER_TEAM);
     if (raw) {
       const list = JSON.parse(raw);
-      if (Array.isArray(list) && list.length > 0) {
+      if (Array.isArray(list)) {
         return list;
       }
     }
@@ -40,6 +40,16 @@ export function saveMasterTeamRoster(members: TeamMember[]) {
   } catch (err) {
     console.error('Failed to save master team roster to localStorage:', err);
   }
+}
+
+/**
+ * Permanently remove members from the master roster (used when a member is
+ * deleted in the editor, so that they do not reappear as "absent" later).
+ */
+export function removeFromMasterTeamRoster(ids: string[]) {
+  if (ids.length === 0) return;
+  const removed = new Set(ids);
+  saveMasterTeamRoster(getMasterTeamRoster().filter((m) => !removed.has(m.id)));
 }
 
 /**
@@ -77,8 +87,11 @@ export function loadCurrentConfig(): EventConfig {
     const raw = localStorage.getItem(STORAGE_KEY_CURRENT);
     if (raw) {
       const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        return defaultEventConfig;
+      }
       // Ensure team members have present flag set, and sync with master roster
-      const rawTeam: TeamMember[] = parsed.team || defaultEventConfig.team;
+      const rawTeam: TeamMember[] = Array.isArray(parsed.team) ? parsed.team : defaultEventConfig.team;
       const teamWithPresence = syncEventTeamWithMaster(rawTeam);
 
       // Update master roster with loaded members
@@ -207,14 +220,22 @@ export function deleteEventFromLibrary(id: string) {
  * Get active saved event ID
  */
 export function getActiveEventId(): string | null {
-  return localStorage.getItem(STORAGE_KEY_ACTIVE_ID);
+  try {
+    return localStorage.getItem(STORAGE_KEY_ACTIVE_ID);
+  } catch {
+    return null;
+  }
 }
 
 /**
  * Set active saved event ID
  */
 export function setActiveEventId(id: string) {
-  localStorage.setItem(STORAGE_KEY_ACTIVE_ID, id);
+  try {
+    localStorage.setItem(STORAGE_KEY_ACTIVE_ID, id);
+  } catch (err) {
+    console.warn('Failed to save active event id:', err);
+  }
 }
 
 /**
@@ -244,12 +265,22 @@ export function importConfigFromJSON(file: File): Promise<EventConfig> {
       try {
         const text = e.target?.result as string;
         const parsed = JSON.parse(text);
-        if (!parsed.brand || !parsed.schedule) {
+        if (
+          !parsed ||
+          typeof parsed !== 'object' ||
+          !parsed.brand ||
+          !Array.isArray(parsed.schedule)
+        ) {
           throw new Error('فرمت فایل JSON ارائه‌شده نامعتبر است');
         }
         resolve({
           ...defaultEventConfig,
           ...parsed,
+          team: Array.isArray(parsed.team) ? parsed.team : defaultEventConfig.team,
+          logos: Array.isArray(parsed.logos) ? parsed.logos : defaultEventConfig.logos,
+          principlesList: Array.isArray(parsed.principlesList)
+            ? parsed.principlesList
+            : defaultEventConfig.principlesList,
           brand: { ...defaultEventConfig.brand, ...(parsed.brand || {}) },
           organizer: { ...defaultEventConfig.organizer, ...(parsed.organizer || {}) },
           clientOrg: { ...defaultEventConfig.clientOrg, ...(parsed.clientOrg || {}) },
