@@ -278,6 +278,29 @@ export function exportConfigAsJSON(config: EventConfig, filename = 'bootcamp-eve
 }
 
 /**
+ * Complete a (possibly older / partial) config object with every default field
+ */
+function mergeWithDefaults(parsed: any): EventConfig {
+  return {
+    ...defaultEventConfig,
+    ...parsed,
+    team: Array.isArray(parsed.team) ? parsed.team : defaultEventConfig.team,
+    logos: Array.isArray(parsed.logos) ? parsed.logos : defaultEventConfig.logos,
+    principlesList: Array.isArray(parsed.principlesList)
+      ? parsed.principlesList
+      : defaultEventConfig.principlesList,
+    brand: { ...defaultEventConfig.brand, ...(parsed.brand || {}) },
+    organizer: { ...defaultEventConfig.organizer, ...(parsed.organizer || {}) },
+    clientOrg: { ...defaultEventConfig.clientOrg, ...(parsed.clientOrg || {}) },
+    modules: { ...defaultEventConfig.modules, ...(parsed.modules || {}) },
+    workshop: { ...defaultEventConfig.workshop, ...(parsed.workshop || {}) },
+    lunch: { ...defaultEventConfig.lunch, ...(parsed.lunch || {}) },
+    sectionTitles: { ...defaultEventConfig.sectionTitles, ...(parsed.sectionTitles || {}) },
+    theme: { ...defaultEventConfig.theme, ...(parsed.theme || {}) },
+  };
+}
+
+/**
  * Import configuration from JSON file
  */
 export function importConfigFromJSON(file: File): Promise<EventConfig> {
@@ -296,27 +319,50 @@ export function importConfigFromJSON(file: File): Promise<EventConfig> {
         ) {
           throw new Error('فرمت فایل JSON ارائه‌شده نامعتبر است');
         }
-        resolve({
-          ...defaultEventConfig,
-          ...parsed,
-          team: Array.isArray(parsed.team) ? parsed.team : defaultEventConfig.team,
-          logos: Array.isArray(parsed.logos) ? parsed.logos : defaultEventConfig.logos,
-          principlesList: Array.isArray(parsed.principlesList)
-            ? parsed.principlesList
-            : defaultEventConfig.principlesList,
-          brand: { ...defaultEventConfig.brand, ...(parsed.brand || {}) },
-          organizer: { ...defaultEventConfig.organizer, ...(parsed.organizer || {}) },
-          clientOrg: { ...defaultEventConfig.clientOrg, ...(parsed.clientOrg || {}) },
-          modules: { ...defaultEventConfig.modules, ...(parsed.modules || {}) },
-          workshop: { ...defaultEventConfig.workshop, ...(parsed.workshop || {}) },
-          lunch: { ...defaultEventConfig.lunch, ...(parsed.lunch || {}) },
-          sectionTitles: { ...defaultEventConfig.sectionTitles, ...(parsed.sectionTitles || {}) },
-          theme: { ...defaultEventConfig.theme, ...(parsed.theme || {}) },
-        });
+        resolve(mergeWithDefaults(parsed));
       } catch (err) {
         reject(err);
       }
     };
     reader.readAsText(file);
   });
+}
+
+declare const __EMBEDDED_CONFIG__: string | null;
+
+/**
+ * Offline build only: a final config JSON can be baked into the HTML
+ * (see scripts/finish-offline.mjs). Whenever a different embedded config is
+ * opened on a machine, it replaces the locally stored state exactly once;
+ * later edits on that machine are kept until the embedded config changes.
+ */
+export function applyEmbeddedConfig() {
+  const raw = typeof __EMBEDDED_CONFIG__ === 'string' ? __EMBEDDED_CONFIG__ : null;
+  if (!raw) return;
+  try {
+    let hash = 0;
+    for (let i = 0; i < raw.length; i++) hash = (Math.imul(31, hash) + raw.charCodeAt(i)) | 0;
+    const id = String(hash);
+    if (localStorage.getItem('bootcamp_deck_embedded_id') === id) return;
+
+    const config = mergeWithDefaults(JSON.parse(raw));
+    const event: SavedEvent = {
+      id: 'embedded-final',
+      name: `${config.brand.name} – نسخه نهایی`,
+      updatedAt: Date.now(),
+      config,
+    };
+    localStorage.setItem(STORAGE_KEY_CURRENT, JSON.stringify(config));
+    localStorage.setItem(STORAGE_KEY_SAVED_LIST, JSON.stringify([event]));
+    localStorage.setItem(STORAGE_KEY_ACTIVE_ID, JSON.stringify(event.id));
+    localStorage.setItem(
+      STORAGE_KEY_MASTER_TEAM,
+      JSON.stringify(
+        config.team.map((m) => ({ id: m.id, name: m.name, role: m.role, photoDataUrl: m.photoDataUrl })),
+      ),
+    );
+    localStorage.setItem('bootcamp_deck_embedded_id', id);
+  } catch (err) {
+    console.warn('Failed to apply embedded config:', err);
+  }
 }
