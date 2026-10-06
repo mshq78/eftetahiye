@@ -1220,12 +1220,12 @@ export const EditorDrawer: React.FC<EditorDrawerProps> = ({
 
               <div className="space-y-2.5 pt-2">
                 {[
-                  { key: 'whyWeAreHere', label: 'اسلاید ۴: چرا اینجاییم؟' },
-                  { key: 'principles', label: 'اسلاید ۵: اصول ما در برند' },
-                  { key: 'lunch', label: 'اسلاید ۷: مسابقه آشپزی و ناهار' },
-                  { key: 'workshop', label: 'اسلاید ۸: کارگاه آموزشی و توان‌افزایی' },
-                  { key: 'cafe', label: 'اسلاید ۹: کافه گفتگو و اختتامیه' },
-                  { key: 'team', label: 'اسلاید ۱۰: معرفی اعضای تیم' },
+                  { key: 'whyWeAreHere', label: 'اسلاید ۵: چرا اینجاییم؟' },
+                  { key: 'principles', label: 'اسلاید ۶: اصول ما در برند' },
+                  { key: 'lunch', label: 'اسلاید ۸: مسابقه آشپزی و ناهار' },
+                  { key: 'workshop', label: 'اسلاید ۹: کارگاه آموزشی و توان‌افزایی' },
+                  { key: 'cafe', label: 'اسلاید ۱۰: کافه گفتگو و اختتامیه' },
+                  { key: 'team', label: 'اسلاید ۲: معرفی اعضای تیم' },
                 ].map((mod) => (
                   <label
                     key={mod.key}

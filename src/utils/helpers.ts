@@ -98,7 +98,51 @@ export function generateActiveSlides(config: EventConfig): SlideItem[] {
     isDark: true,
   });
 
-  // 2. Intro Slide: آماده اتفاقات تازه باشید! (always active, light)
+  // 2. Team Slide(s), shown right after the cover (optional module, light)
+  // Only show members who are attending this specific event (present !== false)
+  // Dynamic split if items > 12
+  if (config.modules.team) {
+    const allMembers = config.team || [];
+    const presentMembers = allMembers.filter((m) => m.present !== false);
+    const teamTitle = config.sectionTitles?.team || 'معرفی اعضای تیم';
+
+    if (presentMembers.length > 12) {
+      const half = Math.ceil(presentMembers.length / 2);
+      slides.push({
+        id: 'slide-team-part-1',
+        type: 'team',
+        title: teamTitle,
+        isDark: false,
+        moduleKey: 'team',
+        part: 1,
+        totalParts: 2,
+        itemsSubset: presentMembers.slice(0, half) as TeamMember[],
+      });
+      slides.push({
+        id: 'slide-team-part-2',
+        type: 'team',
+        title: `${teamTitle} (ادامه)`,
+        isDark: false,
+        moduleKey: 'team',
+        part: 2,
+        totalParts: 2,
+        itemsSubset: presentMembers.slice(half) as TeamMember[],
+      });
+    } else {
+      slides.push({
+        id: 'slide-team',
+        type: 'team',
+        title: teamTitle,
+        isDark: false,
+        moduleKey: 'team',
+        part: 1,
+        totalParts: 1,
+        itemsSubset: presentMembers,
+      });
+    }
+  }
+
+  // 3. Intro Slide: آماده اتفاقات تازه باشید! (always active, light)
   slides.push({
     id: 'slide-intro',
     type: 'intro',
@@ -202,50 +246,6 @@ export function generateActiveSlides(config: EventConfig): SlideItem[] {
       isDark: true,
       moduleKey: 'cafe',
     });
-  }
-
-  // 10. Team Slide(s) (optional module, light)
-  // Only show members who are attending this specific event (present !== false)
-  // Dynamic split if items > 12
-  if (config.modules.team) {
-    const allMembers = config.team || [];
-    const presentMembers = allMembers.filter((m) => m.present !== false);
-    const teamTitle = config.sectionTitles?.team || 'معرفی اعضای تیم';
-
-    if (presentMembers.length > 12) {
-      const half = Math.ceil(presentMembers.length / 2);
-      slides.push({
-        id: 'slide-team-part-1',
-        type: 'team',
-        title: teamTitle,
-        isDark: false,
-        moduleKey: 'team',
-        part: 1,
-        totalParts: 2,
-        itemsSubset: presentMembers.slice(0, half) as TeamMember[],
-      });
-      slides.push({
-        id: 'slide-team-part-2',
-        type: 'team',
-        title: `${teamTitle} (ادامه)`,
-        isDark: false,
-        moduleKey: 'team',
-        part: 2,
-        totalParts: 2,
-        itemsSubset: presentMembers.slice(half) as TeamMember[],
-      });
-    } else {
-      slides.push({
-        id: 'slide-team',
-        type: 'team',
-        title: teamTitle,
-        isDark: false,
-        moduleKey: 'team',
-        part: 1,
-        totalParts: 1,
-        itemsSubset: presentMembers,
-      });
-    }
   }
 
   return slides;
