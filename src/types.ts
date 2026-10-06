@@ -79,6 +79,7 @@ export interface EventConfig {
     team: string;
     schedule?: string;
     principles?: string;
+    cafe?: string;
   };
   theme: {
     primaryHue: number; // 0 to 360

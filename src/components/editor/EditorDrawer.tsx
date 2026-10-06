@@ -1253,6 +1253,30 @@ export const EditorDrawer: React.FC<EditorDrawerProps> = ({
               </div>
             )}
 
+            {/* Cafe Customization */}
+            {config.modules.cafe && (
+              <div className="bg-neutral-800/40 p-4 rounded-2xl border border-neutral-800 space-y-3">
+                <h3 className="text-sm font-bold text-emerald-400">تنظیمات اسلاید کافه گفتگو</h3>
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                    عنوان اسلاید کافه گفتگو
+                  </label>
+                  <input
+                    type="text"
+                    value={config.sectionTitles?.cafe ?? ''}
+                    placeholder="کافه گفتگو: فرصتی برای شنیده شدن"
+                    onChange={(e) =>
+                      updateConfig((prev) => ({
+                        ...prev,
+                        sectionTitles: { ...prev.sectionTitles, cafe: e.target.value },
+                      }))
+                    }
+                    className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Lunch Customization */}
             {config.modules.lunch && (
               <div className="bg-neutral-800/40 p-4 rounded-2xl border border-neutral-800 space-y-3">

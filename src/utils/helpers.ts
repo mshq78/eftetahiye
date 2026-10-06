@@ -198,7 +198,7 @@ export function generateActiveSlides(config: EventConfig): SlideItem[] {
     slides.push({
       id: 'slide-cafe',
       type: 'cafe',
-      title: 'کافه گفتگو: فرصتی برای شنیده شدن',
+      title: config.sectionTitles?.cafe || 'کافه گفتگو: فرصتی برای شنیده شدن',
       isDark: true,
       moduleKey: 'cafe',
     });
