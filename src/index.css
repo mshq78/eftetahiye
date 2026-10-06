@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "vazirmatn/Vazirmatn-Variable-font-face.css";
 
 @theme {
   --font-sans: 'Vazirmatn', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
