@@ -7,6 +7,8 @@ export interface LogoItem {
   name: string;
   imageDataUrl?: string;
   pinned?: boolean;
+  /** Card behind the logo: auto detects light logos and uses a dark card */
+  background?: 'auto' | 'light' | 'dark';
 }
 
 export interface ScheduleItem {
@@ -79,6 +81,7 @@ export interface EventConfig {
     team: string;
     schedule?: string;
     principles?: string;
+    cafe?: string;
   };
   theme: {
     primaryHue: number; // 0 to 360

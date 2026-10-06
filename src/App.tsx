@@ -15,6 +15,7 @@ import {
   exportConfigAsJSON,
   importConfigFromJSON,
   syncEventTeamWithMaster,
+  removeFromMasterTeamRoster,
 } from './utils/storage';
 import { DeckFrame } from './components/deck/DeckFrame';
 import { SlideRenderer } from './components/slides/SlideRenderer';
@@ -56,10 +57,17 @@ export default function App() {
   }, [config.theme.primaryHue]);
 
   // Auto-save current configuration
-  const handleConfigChange = useCallback((newConfig: EventConfig) => {
-    setConfig(newConfig);
-    saveCurrentConfig(newConfig);
-  }, []);
+  const handleConfigChange = useCallback(
+    (newConfig: EventConfig) => {
+      // Members deleted in the editor must also leave the master roster,
+      // otherwise they come back as "absent" on the next load.
+      const keptIds = new Set(newConfig.team.map((m) => m.id));
+      removeFromMasterTeamRoster(config.team.filter((m) => !keptIds.has(m.id)).map((m) => m.id));
+      setConfig(newConfig);
+      saveCurrentConfig(newConfig);
+    },
+    [config.team],
+  );
 
   // Navigation Handlers with direction tracking
   const handleNext = useCallback(() => {
@@ -111,16 +119,32 @@ export default function App() {
   // Keyboard navigation shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Do not trigger presentation shortcuts if user is typing in input or textarea
+      // Never hijack browser shortcuts such as Ctrl+F, Ctrl+P, Cmd+G ...
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      // Do not trigger presentation shortcuts if user is typing in a form field
       const target = e.target as HTMLElement;
-      if (
+      const isTyping =
         target &&
-        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
-      ) {
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable);
+      if (isTyping) {
+        if (e.key === 'Escape') {
+          target.blur();
+          if (isOverviewOpen) setIsOverviewOpen(false);
+          else if (isEditorOpen) setIsEditorOpen(false);
+        }
         return;
       }
 
-      switch (e.key) {
+      // Shortcut letters must also work on the Persian keyboard layout, where
+      // e.key is a Persian letter: fall back to the physical key code.
+      const key =
+        e.code === 'KeyF' ? 'f' : e.code === 'KeyG' ? 'g' : e.code === 'KeyE' ? 'e' : e.key;
+
+      switch (key) {
         case 'ArrowLeft':
         case ' ':
         case 'PageDown':
@@ -141,17 +165,14 @@ export default function App() {
           handleGoToLast();
           break;
         case 'f':
-        case 'F':
           e.preventDefault();
           handleToggleFullscreen();
           break;
         case 'g':
-        case 'G':
           e.preventDefault();
           setIsOverviewOpen((prev) => !prev);
           break;
         case 'e':
-        case 'E':
           // In fullscreen mode, keep editor hidden as specified in prompt
           if (!document.fullscreenElement) {
             e.preventDefault();
@@ -240,21 +261,23 @@ export default function App() {
     exportConfigAsJSON(config, `${brandName}-event-config.json`);
   };
 
-  const handleImportJSON = async (file: File) => {
+  const handleImportJSON = async (file: File): Promise<boolean> => {
     try {
       const imported = await importConfigFromJSON(file);
       setConfig(imported);
       saveCurrentConfig(imported);
       setCurrentSlideIndex(0);
+      return true;
     } catch (err: unknown) {
       alert((err as Error).message || 'خطا در بارگذاری فایل JSON');
+      return false;
     }
   };
 
   const currentSlide = slides[currentSlideIndex] || slides[0];
 
   return (
-    <main className="w-screen h-screen overflow-hidden bg-neutral-950 font-sans">
+    <main className="w-screen h-screen overflow-hidden bg-neutral-950 font-sans print:w-auto print:h-auto print:overflow-visible">
       {/* 1. Presentation Deck 16:9 Canvas Frame */}
       <DeckFrame
         onNext={handleNext}

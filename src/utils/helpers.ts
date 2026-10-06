@@ -39,6 +39,12 @@ export function compressImage(file: File, maxDim = 500, quality = 0.85): Promise
         let width = img.width;
         let height = img.height;
 
+        // e.g. SVG without intrinsic size: keep the original data URL
+        if (!width || !height) {
+          resolve(e.target?.result as string);
+          return;
+        }
+
         if (width > maxDim || height > maxDim) {
           if (width > height) {
             height = Math.round((height * maxDim) / width);
@@ -92,7 +98,51 @@ export function generateActiveSlides(config: EventConfig): SlideItem[] {
     isDark: true,
   });
 
-  // 2. Intro Slide: آماده اتفاقات تازه باشید! (always active, light)
+  // 2. Team Slide(s), shown right after the cover (optional module, light)
+  // Only show members who are attending this specific event (present !== false)
+  // Dynamic split if items > 12
+  if (config.modules.team) {
+    const allMembers = config.team || [];
+    const presentMembers = allMembers.filter((m) => m.present !== false);
+    const teamTitle = config.sectionTitles?.team || 'معرفی اعضای تیم';
+
+    if (presentMembers.length > 12) {
+      const half = Math.ceil(presentMembers.length / 2);
+      slides.push({
+        id: 'slide-team-part-1',
+        type: 'team',
+        title: teamTitle,
+        isDark: false,
+        moduleKey: 'team',
+        part: 1,
+        totalParts: 2,
+        itemsSubset: presentMembers.slice(0, half) as TeamMember[],
+      });
+      slides.push({
+        id: 'slide-team-part-2',
+        type: 'team',
+        title: `${teamTitle} (ادامه)`,
+        isDark: false,
+        moduleKey: 'team',
+        part: 2,
+        totalParts: 2,
+        itemsSubset: presentMembers.slice(half) as TeamMember[],
+      });
+    } else {
+      slides.push({
+        id: 'slide-team',
+        type: 'team',
+        title: teamTitle,
+        isDark: false,
+        moduleKey: 'team',
+        part: 1,
+        totalParts: 1,
+        itemsSubset: presentMembers,
+      });
+    }
+  }
+
+  // 3. Intro Slide: آماده اتفاقات تازه باشید! (always active, light)
   slides.push({
     id: 'slide-intro',
     type: 'intro',
@@ -192,54 +242,10 @@ export function generateActiveSlides(config: EventConfig): SlideItem[] {
     slides.push({
       id: 'slide-cafe',
       type: 'cafe',
-      title: 'کافه گفتگو: فرصتی برای شنیده شدن',
+      title: config.sectionTitles?.cafe || 'کافه گفتگو: فرصتی برای شنیده شدن',
       isDark: true,
       moduleKey: 'cafe',
     });
-  }
-
-  // 10. Team Slide(s) (optional module, light)
-  // Only show members who are attending this specific event (present !== false)
-  // Dynamic split if items > 12
-  if (config.modules.team) {
-    const allMembers = config.team || [];
-    const presentMembers = allMembers.filter((m) => m.present !== false);
-    const teamTitle = config.sectionTitles?.team || 'معرفی اعضای تیم';
-
-    if (presentMembers.length > 12) {
-      const half = Math.ceil(presentMembers.length / 2);
-      slides.push({
-        id: 'slide-team-part-1',
-        type: 'team',
-        title: teamTitle,
-        isDark: false,
-        moduleKey: 'team',
-        part: 1,
-        totalParts: 2,
-        itemsSubset: presentMembers.slice(0, half) as TeamMember[],
-      });
-      slides.push({
-        id: 'slide-team-part-2',
-        type: 'team',
-        title: `${teamTitle} (ادامه)`,
-        isDark: false,
-        moduleKey: 'team',
-        part: 2,
-        totalParts: 2,
-        itemsSubset: presentMembers.slice(half) as TeamMember[],
-      });
-    } else {
-      slides.push({
-        id: 'slide-team',
-        type: 'team',
-        title: teamTitle,
-        isDark: false,
-        moduleKey: 'team',
-        part: 1,
-        totalParts: 1,
-        itemsSubset: presentMembers,
-      });
-    }
   }
 
   return slides;
@@ -273,4 +279,40 @@ export function getScheduleIconKey(title: string, userIcon?: string): string {
     return 'Target';
   }
   return 'Sparkles';
+}
+
+/**
+ * True if an image is mostly light (e.g. a white logo with transparent
+ * background) and would be invisible on a white card.
+ */
+export function isLightImage(dataUrl: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onerror = () => resolve(false);
+    img.onload = () => {
+      try {
+        const size = 48;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return resolve(false);
+        ctx.drawImage(img, 0, 0, size, size);
+        const { data } = ctx.getImageData(0, 0, size, size);
+        let sum = 0;
+        let count = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          if (data[i + 3] < 40) continue; // ignore transparent pixels
+          sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+          count++;
+        }
+        // Fully opaque light images (white background JPEG) look fine on white
+        const opaqueRatio = count / (size * size);
+        resolve(count > 0 && opaqueRatio < 0.97 && sum / count > 200);
+      } catch {
+        resolve(false);
+      }
+    };
+    img.src = dataUrl;
+  });
 }

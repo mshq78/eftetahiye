@@ -50,7 +50,7 @@ interface EditorDrawerProps {
   onDeleteEvent: (id: string) => void;
   onResetToDefault: () => void;
   onExportJSON: () => void;
-  onImportJSON: (file: File) => void;
+  onImportJSON: (file: File) => Promise<boolean> | void;
 }
 
 type TabType = 'info' | 'logos' | 'schedule' | 'team' | 'slides' | 'theme' | 'events';
@@ -598,7 +598,7 @@ export const EditorDrawer: React.FC<EditorDrawerProps> = ({
 
                   {/* Logo Image Slot & Upload */}
                   <div className="flex items-center gap-3">
-                    <div className="w-24 h-12 rounded-xl bg-white flex items-center justify-center p-1 border border-neutral-600 shrink-0">
+                    <div className={`w-24 h-12 rounded-xl ${logo.background === 'dark' ? 'bg-[#06201a]' : 'bg-white'} flex items-center justify-center p-1 border border-neutral-600 shrink-0`}>
                       {logo.imageDataUrl ? (
                         <img
                           src={logo.imageDataUrl}
@@ -636,6 +636,26 @@ export const EditorDrawer: React.FC<EditorDrawerProps> = ({
                           }}
                         />
                       </label>
+
+                      {logo.imageDataUrl && (
+                        <select
+                          value={logo.background ?? 'auto'}
+                          onChange={(e) => {
+                            const updated = [...config.logos];
+                            updated[idx] = {
+                              ...logo,
+                              background: e.target.value as LogoItem['background'],
+                            };
+                            updateConfig((prev) => ({ ...prev, logos: updated }));
+                          }}
+                          className="bg-neutral-900 border border-neutral-700 rounded-lg px-2 py-1 text-xs text-neutral-200"
+                          title="رنگ کادر پشت لوگو (برای لوگوهای سفید، تیره را انتخاب کنید)"
+                        >
+                          <option value="auto">کادر: خودکار</option>
+                          <option value="light">کادر: روشن</option>
+                          <option value="dark">کادر: تیره</option>
+                        </select>
+                      )}
 
                       {logo.imageDataUrl && (
                         <button
@@ -699,7 +719,8 @@ export const EditorDrawer: React.FC<EditorDrawerProps> = ({
               </label>
               <input
                 type="text"
-                value={config.sectionTitles?.schedule || 'برنامه زمانی روز ما'}
+                value={config.sectionTitles?.schedule ?? ''}
+                placeholder="برنامه زمانی روز ما"
                 onChange={(e) =>
                   updateConfig((prev) => ({
                     ...prev,
@@ -983,7 +1004,8 @@ export const EditorDrawer: React.FC<EditorDrawerProps> = ({
                 </label>
                 <input
                   type="text"
-                  value={config.sectionTitles?.team || 'معرفی اعضای تیم'}
+                  value={config.sectionTitles?.team ?? ''}
+                  placeholder="معرفی اعضای تیم"
                   onChange={(e) =>
                     updateConfig((prev) => ({
                       ...prev,
@@ -1198,12 +1220,12 @@ export const EditorDrawer: React.FC<EditorDrawerProps> = ({
 
               <div className="space-y-2.5 pt-2">
                 {[
-                  { key: 'whyWeAreHere', label: 'اسلاید ۴: چرا اینجاییم؟' },
-                  { key: 'principles', label: 'اسلاید ۵: اصول ما در برند' },
-                  { key: 'lunch', label: 'اسلاید ۷: مسابقه آشپزی و ناهار' },
-                  { key: 'workshop', label: 'اسلاید ۸: کارگاه آموزشی و توان‌افزایی' },
-                  { key: 'cafe', label: 'اسلاید ۹: کافه گفتگو و اختتامیه' },
-                  { key: 'team', label: 'اسلاید ۱۰: معرفی اعضای تیم' },
+                  { key: 'whyWeAreHere', label: 'اسلاید ۵: چرا اینجاییم؟' },
+                  { key: 'principles', label: 'اسلاید ۶: اصول ما در برند' },
+                  { key: 'lunch', label: 'اسلاید ۸: مسابقه آشپزی و ناهار' },
+                  { key: 'workshop', label: 'اسلاید ۹: کارگاه آموزشی و توان‌افزایی' },
+                  { key: 'cafe', label: 'اسلاید ۱۰: کافه گفتگو و اختتامیه' },
+                  { key: 'team', label: 'اسلاید ۲: معرفی اعضای تیم' },
                 ].map((mod) => (
                   <label
                     key={mod.key}
@@ -1246,6 +1268,30 @@ export const EditorDrawer: React.FC<EditorDrawerProps> = ({
                     }
                     placeholder="مثلاً: توسعه ارتباطات موثر و حل تعارض"
                     className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Cafe Customization */}
+            {config.modules.cafe && (
+              <div className="bg-neutral-800/40 p-4 rounded-2xl border border-neutral-800 space-y-3">
+                <h3 className="text-sm font-bold text-emerald-400">تنظیمات اسلاید کافه گفتگو</h3>
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-300 mb-1">
+                    عنوان اسلاید کافه گفتگو
+                  </label>
+                  <input
+                    type="text"
+                    value={config.sectionTitles?.cafe ?? ''}
+                    placeholder="کافه گفتگو: فرصتی برای شنیده شدن"
+                    onChange={(e) =>
+                      updateConfig((prev) => ({
+                        ...prev,
+                        sectionTitles: { ...prev.sectionTitles, cafe: e.target.value },
+                      }))
+                    }
+                    className="w-full bg-neutral-900 border border-neutral-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                   />
                 </div>
               </div>
@@ -1563,12 +1609,13 @@ export const EditorDrawer: React.FC<EditorDrawerProps> = ({
                     type="file"
                     accept=".json"
                     className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
+                    onChange={async (e) => {
+                      const input = e.target;
+                      const file = input.files?.[0];
                       if (file) {
-                        onImportJSON(file);
-                        showNotice('فایل رویداد با موفقیت بارگذاری شد.');
-                        e.target.value = '';
+                        const ok = await onImportJSON(file);
+                        if (ok !== false) showNotice('فایل رویداد با موفقیت بارگذاری شد.');
+                        input.value = '';
                       }
                     }}
                   />

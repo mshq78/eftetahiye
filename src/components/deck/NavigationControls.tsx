@@ -80,9 +80,19 @@ export const NavigationControls: React.FC<NavigationControlsProps> = ({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Toggle visibility strictly with 'h' or 'H', do NOT unhide on other keys (like arrow keys/space)!
-      if (e.key === 'h' || e.key === 'H') {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === 'Escape') setShowHelp(false);
+      if (e.key === 'h' || e.key === 'H' || e.code === 'KeyH') {
         const target = e.target as HTMLElement;
-        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return;
+        if (
+          target &&
+          (target.tagName === 'INPUT' ||
+            target.tagName === 'TEXTAREA' ||
+            target.tagName === 'SELECT' ||
+            target.isContentEditable)
+        ) {
+          return;
+        }
         setIsVisible((prev) => !prev);
       }
     };
