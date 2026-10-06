@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
-import { EventConfig } from '../../types';
-import { renderTemplate } from '../../utils/helpers';
+import { EventConfig, LogoItem } from '../../types';
+import { renderTemplate, isLightImage } from '../../utils/helpers';
 import { Pin, Sparkles, Building2 } from 'lucide-react';
 import { SlidePatterns } from '../common/SlidePatterns';
 
@@ -10,6 +10,58 @@ interface CoverSlideProps {
   slideNumber: number;
   totalSlides: number;
 }
+
+const LogoCard: React.FC<{ logo: LogoItem; idx: number }> = ({ logo, idx }) => {
+  const [autoLight, setAutoLight] = useState(false);
+  const mode = logo.background ?? 'auto';
+
+  useEffect(() => {
+    let cancelled = false;
+    if (mode === 'auto' && logo.imageDataUrl) {
+      isLightImage(logo.imageDataUrl).then((light) => {
+        if (!cancelled) setAutoLight(light);
+      });
+    } else {
+      setAutoLight(false);
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [logo.imageDataUrl, mode]);
+
+  const darkCard = mode === 'dark' || (mode === 'auto' && autoLight);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 15, scale: 0.9 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.35, delay: 0.45 + idx * 0.07 }}
+      className={`relative rounded-2xl p-3 h-22 w-48 flex items-center justify-center shadow-xl border transition-transform hover:scale-105 ${
+        darkCard
+          ? 'bg-[var(--primary-bg-dark)] border-emerald-400/40'
+          : 'bg-white/95 border-white/30'
+      }`}
+      title={logo.name}
+    >
+      {logo.pinned && (
+        <div className="absolute -top-2.5 -right-2.5 bg-emerald-600 text-white rounded-full p-1.5 shadow-md">
+          <Pin className="w-4 h-4" />
+        </div>
+      )}
+      {logo.imageDataUrl ? (
+        <img src={logo.imageDataUrl} alt={logo.name} className="max-h-16 max-w-40 object-contain" />
+      ) : (
+        <span
+          className={`font-black text-center text-base leading-tight line-clamp-2 px-1 ${
+            darkCard ? 'text-white' : 'text-neutral-900'
+          }`}
+        >
+          {logo.name}
+        </span>
+      )}
+    </motion.div>
+  );
+};
 
 export const CoverSlide: React.FC<CoverSlideProps> = ({ config }) => {
   const brandName = config.brand.name || 'همتا';
@@ -176,33 +228,7 @@ export const CoverSlide: React.FC<CoverSlideProps> = ({ config }) => {
         {/* Logos container */}
         <div className="flex items-center gap-6 flex-wrap">
           {config.logos && config.logos.length > 0 ? (
-            config.logos.map((logo, idx) => (
-              <motion.div
-                key={logo.id}
-                initial={{ opacity: 0, y: 15, scale: 0.9 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.35, delay: 0.45 + idx * 0.07 }}
-                className="relative bg-white/95 rounded-2xl p-3 h-22 w-48 flex items-center justify-center shadow-xl border border-white/30 transition-transform hover:scale-105"
-                title={logo.name}
-              >
-                {logo.pinned && (
-                  <div className="absolute -top-2.5 -right-2.5 bg-emerald-600 text-white rounded-full p-1.5 shadow-md">
-                    <Pin className="w-4 h-4" />
-                  </div>
-                )}
-                {logo.imageDataUrl ? (
-                  <img
-                    src={logo.imageDataUrl}
-                    alt={logo.name}
-                    className="max-h-16 max-w-40 object-contain"
-                  />
-                ) : (
-                  <span className="text-neutral-900 font-black text-center text-base leading-tight line-clamp-2 px-1">
-                    {logo.name}
-                  </span>
-                )}
-              </motion.div>
-            ))
+            config.logos.map((logo, idx) => <LogoCard key={logo.id} logo={logo} idx={idx} />)
           ) : (
             <div className="text-emerald-200 text-2xl font-bold">
               {showOrganizerOnCover && organizerName ? `${organizerLabel}: ${organizerName} | ` : ''}

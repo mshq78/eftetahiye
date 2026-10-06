@@ -280,3 +280,39 @@ export function getScheduleIconKey(title: string, userIcon?: string): string {
   }
   return 'Sparkles';
 }
+
+/**
+ * True if an image is mostly light (e.g. a white logo with transparent
+ * background) and would be invisible on a white card.
+ */
+export function isLightImage(dataUrl: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onerror = () => resolve(false);
+    img.onload = () => {
+      try {
+        const size = 48;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return resolve(false);
+        ctx.drawImage(img, 0, 0, size, size);
+        const { data } = ctx.getImageData(0, 0, size, size);
+        let sum = 0;
+        let count = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          if (data[i + 3] < 40) continue; // ignore transparent pixels
+          sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+          count++;
+        }
+        // Fully opaque light images (white background JPEG) look fine on white
+        const opaqueRatio = count / (size * size);
+        resolve(count > 0 && opaqueRatio < 0.97 && sum / count > 200);
+      } catch {
+        resolve(false);
+      }
+    };
+    img.src = dataUrl;
+  });
+}

@@ -598,7 +598,7 @@ export const EditorDrawer: React.FC<EditorDrawerProps> = ({
 
                   {/* Logo Image Slot & Upload */}
                   <div className="flex items-center gap-3">
-                    <div className="w-24 h-12 rounded-xl bg-white flex items-center justify-center p-1 border border-neutral-600 shrink-0">
+                    <div className={`w-24 h-12 rounded-xl ${logo.background === 'dark' ? 'bg-[#06201a]' : 'bg-white'} flex items-center justify-center p-1 border border-neutral-600 shrink-0`}>
                       {logo.imageDataUrl ? (
                         <img
                           src={logo.imageDataUrl}
@@ -636,6 +636,26 @@ export const EditorDrawer: React.FC<EditorDrawerProps> = ({
                           }}
                         />
                       </label>
+
+                      {logo.imageDataUrl && (
+                        <select
+                          value={logo.background ?? 'auto'}
+                          onChange={(e) => {
+                            const updated = [...config.logos];
+                            updated[idx] = {
+                              ...logo,
+                              background: e.target.value as LogoItem['background'],
+                            };
+                            updateConfig((prev) => ({ ...prev, logos: updated }));
+                          }}
+                          className="bg-neutral-900 border border-neutral-700 rounded-lg px-2 py-1 text-xs text-neutral-200"
+                          title="رنگ کادر پشت لوگو (برای لوگوهای سفید، تیره را انتخاب کنید)"
+                        >
+                          <option value="auto">کادر: خودکار</option>
+                          <option value="light">کادر: روشن</option>
+                          <option value="dark">کادر: تیره</option>
+                        </select>
+                      )}
 
                       {logo.imageDataUrl && (
                         <button
