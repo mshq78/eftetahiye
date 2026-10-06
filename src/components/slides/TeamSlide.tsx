@@ -30,36 +30,44 @@ export const TeamSlide: React.FC<TeamSlideProps> = ({
   // Compute grid layout based on members count:
   const count = members.length;
 
-  let gridClass = 'grid-cols-4 max-w-[1580px] mx-auto';
+  // Balanced rows: 1-4 members -> one row, 5-8 -> two rows, 9+ -> three rows.
+  // The last (shorter) row is centered, so 5 members become 3 + 2, never 4 + 1.
+  const rows = count <= 4 ? 1 : count <= 8 ? 2 : 3;
+  const cols = Math.max(1, Math.ceil(count / rows));
+  const GAP = rows === 1 ? 28 : 20;
+  const compact = rows === 3; // 9+ members: horizontal cards so everything fits
+  const cardWidth = `calc((100% - ${GAP * (cols - 1)}px) / ${cols})`;
+  const containerMaxWidth = count <= 3 ? [0, 520, 820, 1160][count] : 1580;
+
   let avatarSizeClass = 'w-32 h-32 text-4xl';
   let nameSizeClass = 'text-3xl';
   let roleSizeClass = 'text-2xl';
+  let cardPaddingClass = 'p-6';
 
   if (count === 1) {
-    gridClass = 'grid-cols-1 max-w-lg mx-auto';
     avatarSizeClass = 'w-56 h-56 text-7xl';
     nameSizeClass = 'text-5xl';
     roleSizeClass = 'text-3xl';
   } else if (count === 2) {
-    gridClass = 'grid-cols-2 max-w-3xl mx-auto';
     avatarSizeClass = 'w-48 h-48 text-6xl';
     nameSizeClass = 'text-4xl';
     roleSizeClass = 'text-2xl';
   } else if (count === 3) {
-    gridClass = 'grid-cols-3 max-w-5xl mx-auto';
     avatarSizeClass = 'w-44 h-44 text-5xl';
     nameSizeClass = 'text-3xl xl:text-4xl';
     roleSizeClass = 'text-2xl';
   } else if (count === 4) {
-    gridClass = 'grid-cols-4 max-w-[1550px] mx-auto';
     avatarSizeClass = 'w-36 h-36 text-4xl';
-    nameSizeClass = 'text-3xl';
-    roleSizeClass = 'text-2xl';
-  } else if (count <= 8) {
-    gridClass = 'grid-cols-4 max-w-[1580px] mx-auto';
-    avatarSizeClass = 'w-32 h-32 text-4xl';
+  } else if (rows === 2) {
+    avatarSizeClass = 'w-28 h-28 text-4xl';
     nameSizeClass = 'text-2xl xl:text-3xl';
-    roleSizeClass = 'text-xl xl:text-2xl';
+    roleSizeClass = 'text-xl';
+    cardPaddingClass = 'p-5';
+  } else {
+    avatarSizeClass = 'w-20 h-20 text-3xl';
+    nameSizeClass = 'text-2xl';
+    roleSizeClass = 'text-lg';
+    cardPaddingClass = 'p-3.5';
   }
 
   // Get initial letter of name for gradient avatar fallback
@@ -95,7 +103,10 @@ export const TeamSlide: React.FC<TeamSlideProps> = ({
             </p>
           </div>
         ) : (
-          <div className={`grid ${gridClass} gap-7 items-stretch justify-center`}>
+          <div
+            className="flex flex-wrap justify-center items-stretch mx-auto"
+            style={{ gap: GAP, maxWidth: containerMaxWidth }}
+          >
             {members.map((member, index) => {
               return (
                 <motion.div
@@ -107,10 +118,11 @@ export const TeamSlide: React.FC<TeamSlideProps> = ({
                     delay: 0.06 + index * 0.06,
                     ease: [0.16, 1, 0.3, 1],
                   }}
-                  className="bg-white rounded-3xl p-6 shadow-lg border-2 border-emerald-900/10 flex flex-col items-center text-center justify-between hover:shadow-2xl hover:border-emerald-600/40 transition-all duration-300"
+                  style={{ width: cardWidth }}
+                  className={`bg-white rounded-3xl ${cardPaddingClass} shadow-lg border-2 border-emerald-900/10 ${compact ? 'flex-row items-center gap-4 text-right' : 'flex-col items-center text-center justify-between'} flex hover:shadow-2xl hover:border-emerald-600/40 transition-all duration-300`}
                 >
                   {/* Circular photo or Gradient Avatar with first letter */}
-                  <div className="relative mb-4">
+                  <div className={`relative shrink-0 ${compact ? '' : 'mb-4'}`}>
                     {member.photoDataUrl ? (
                       <img
                         src={member.photoDataUrl}
@@ -127,13 +139,13 @@ export const TeamSlide: React.FC<TeamSlideProps> = ({
                   </div>
 
                   {/* Name & Role */}
-                  <div className="space-y-2 w-full">
-                    <h4 className={`${nameSizeClass} font-black text-neutral-950 leading-snug tracking-tight`}>
+                  <div className={`space-y-2 ${compact ? 'flex-1 min-w-0' : 'w-full'}`}>
+                    <h4 className={`${nameSizeClass} font-black text-neutral-950 leading-snug tracking-tight line-clamp-2`}>
                       {member.name}
                     </h4>
                     {/* NEVER hallucinate roles: only display if filled */}
                     {member.role && member.role.trim().length > 0 && (
-                      <p className={`${roleSizeClass} font-bold text-emerald-950 leading-relaxed bg-emerald-100/90 py-1.5 px-4 rounded-full border border-emerald-300 inline-block shadow-sm`}>
+                      <p className={`${roleSizeClass} font-bold text-emerald-950 leading-snug bg-emerald-100/90 py-1.5 px-4 rounded-2xl border border-emerald-300 inline-block max-w-full line-clamp-2 shadow-sm`}>
                         {member.role}
                       </p>
                     )}
